@@ -1,0 +1,104 @@
+[
+  {
+    "id": 1,
+    "coords": [
+      214,
+      78,
+      251,
+      125
+    ],
+    "label": "Door 1",
+    "in_count": 2,
+    "out_count": 2,
+    "color": [
+      0,
+      255,
+      0
+    ]
+  },
+  {
+    "id": 2,
+    "coords": [
+      265,
+      83,
+      295,
+      124
+    ],
+    "label": "Door 2",
+    "in_count": 2,
+    "out_count": 2,
+    "color": [
+      255,
+      0,
+      0
+    ]
+  },
+  {
+    "id": 3,
+    "coords": [
+      301,
+      80,
+      333,
+      124
+    ],
+    "label": "Door 3",
+    "in_count": 2,
+    "out_count": 2,
+    "color": [
+      0,
+      255,
+      255
+    ]
+  },
+  {
+    "id": 4,
+    "coords": [
+      386,
+      81,
+      412,
+      128
+    ],
+    "label": "Door 4",
+    "in_count": 0,
+    "out_count": 0,
+    "color": [
+      255,
+      0,
+      255
+    ]
+  },
+  {
+    "id": 5,
+    "coords": [
+      492,
+      89,
+      516,
+      135
+    ],
+    "label": "Door 5",
+    "in_count": 0,
+    "out_count": 0,
+    "color": [
+      0,
+      128,
+      255
+    ]
+  },
+  {
+    "id": 6,
+    "coords": [
+      538,
+      92,
+      566,
+      149
+    ],
+    "label": "Door 6",
+    "in_count": 0,
+    "out_count": 0,
+    "color": [
+      0,
+      255,
+      0
+    ]
+  }
+]

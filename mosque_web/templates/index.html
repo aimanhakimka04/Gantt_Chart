@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Mosque Counter (Trend Analysis)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #1e1e1e; 
+            color: #e0e0e0; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        h2 { color: #fff; margin-bottom: 20px; }
+        
+        /* Container Utama: Flex Row untuk Desktop */
+        .container { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 20px; 
+            align-items: flex-start; 
+            max-width: 1200px; /* Hadkan lebar maksimum supaya kemas */
+            margin: 0 auto;
+        }
+        
+        /* === KOLUM KIRI (Video + Trend + Global) === */
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 640px; /* Lebar tetap mengikut saiz video */
+        }
+
+        .video-wrapper { 
+            position: relative; 
+            width: 100%; /* Ikut lebar bapa (640px) */
+            height: 360px; 
+            border: 3px solid #444; 
+            background: #000; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #videoFeed { width: 100%; height: 100%; display: block; object-fit: contain; }
+        #drawLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+
+        /* Panel Style Umum */
+        .panel { 
+            background: #2d2d2d; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: left; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+        }
+
+        /* === GLOBAL COUNT (Kecil di bawah video) === */
+        .global-box { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+        }
+        .global-count-wrapper { text-align: right; }
+        .global-count { font-size: 2.5em; font-weight: bold; color: #00bcd4; line-height: 1; }
+        .global-label { font-size: 1em; color: #aaa; text-transform: uppercase; font-weight: bold; }
+        .global-time { font-size: 0.8em; color: #777; margin-top: 5px; }
+
+        /* === CHART (Lebar di bawah global count) === */
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .chart-container { position: relative; height: 250px; width: 100%; }
+        select { background: #444; color: #fff; border: 1px solid #666; padding: 5px; border-radius: 4px; }
+
+        /* === KOLUM KANAN (Zone Table) === */
+        .right-column {
+            width: 380px; /* Lebar Sidebar Kanan */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        th, td { padding: 10px 8px; border-bottom: 1px solid #444; font-size: 0.95em; text-align: center; }
+        th { text-align: center; color: #888; text-transform: uppercase; font-size: 0.8em; background: #252525; }
+        /* Align Zone Name to left */
+        td:first-child, th:first-child { text-align: left; }
+
+        /* Buttons */
+        .btn-group { display: flex; gap: 5px; margin-top: 15px; flex-wrap: wrap; }
+        button { flex: 1; padding: 10px; cursor: pointer; background: #3a3a3a; color: white; border: 1px solid #555; border-radius: 4px; transition: 0.2s; white-space: nowrap; font-weight: 500;}
+        button:hover { background: #505050; }
+        button.red { background: #d32f2f; border-color: #b71c1c; }
+        button.red:hover { background: #f44336; }
+        button.green { background: #388e3c; border-color: #2e7d32; }
+        button.green:hover { background: #4caf50; }
+        button.blue { background: #0288d1; border-color: #01579b; }
+
+        .info { font-size: 0.85em; color: #888; margin-top: 15px; line-height: 1.4; border-top: 1px solid #444; padding-top: 10px; }
+        #statusMsg { font-weight: bold; color: #ffeb3b; }
+
+        /* Responsive Mobile */
+        @media (max-width: 1050px) {
+            .container { flex-direction: column; align-items: center; }
+            .left-column, .right-column { width: 100%; max-width: 640px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h2>AI Mosque People Counter</h2>
+
+    <div class="container">
+        
+        <div class="left-column">
+            
+            <div class="video-wrapper">
+                <img id="videoFeed" src="{{ url_for('video_feed') }}">
+                <canvas id="drawLayer" width="640" height="360"></canvas>
+            </div>
+
+            <div class="panel">
+                <div class="global-box">
+                    <div>
+                        <div class="global-label">Total People in View</div>
+                        <div class="global-time">Last Update: <span id="globalTime">-</span></div>
+                    </div>
+                    <div class="global-count-wrapper">
+                        <div class="global-count" id="globalCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="chart-header">
+                    <h3 style="margin:0">Trend Analysis</h3>
+                    <select id="timeFilter" onchange="updateChartSource()">
+                        <option value="realtime">Realtime (Live)</option>
+                        <option value="minute">By Minute</option>
+                        <option value="hour">By Hour</option>
+                        <option value="day">By Day</option>
+                        <option value="month">By Month</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-column">
+            <div class="panel" style="height: 100%;">
+                <h3 style="margin-top:0">Zone Counts (Occupancy)</h3>
+                <table id="statsTable">
+                    <thead>
+                        <tr><th>Zone Name</th><th>IN</th><th>OUT</th><th>NET</th></tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+
+                <div class="btn-group">
+                    <button onclick="toggleBoxes()" class="blue">Toggle Boxes</button>
+                    <button onclick="doAction('save')" class="green">Save</button>
+                    <button onclick="doAction('load')">Load</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="doAction('export')">CSV</button>
+                    <button onclick="doAction('reset')" class="red">Reset</button>
+                </div>
+                
+                <p class="info">
+                    <b>Controls:</b><br>
+                    - Drag mouse on video to ADD Zone.<br>
+                    - Right-Click on zone to DELETE.<br>
+                    Status: <span id="statusMsg">Ready.</span>
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('drawLayer');
+        const ctx = canvas.getContext('2d');
+        const statusMsg = document.getElementById('statusMsg');
+        let isDrawing = false;
+        let startX = 0; let startY = 0;
+
+        // --- Chart Setup ---
+        const ctxChart = document.getElementById('trendChart').getContext('2d');
+        const trendChart = new Chart(ctxChart, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Global Count',
+                    borderColor: '#00bcd4',
+                    backgroundColor: 'rgba(0, 188, 212, 0.2)',
+                    data: [],
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#444' } },
+                    y: { ticks: { color: '#888' }, grid: { color: '#444' }, beginAtZero: true }
+                },
+                plugins: { legend: { labels: { color: '#ccc' } } }
+            }
+        });
+
+        // --- Mouse Events (Drawing) ---
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            if (e.button === 0) {
+                isDrawing = true; startX = e.clientX - rect.left; startY = e.clientY - rect.top;
+            } else if (e.button === 2) {
+                e.preventDefault(); deleteZone(e.clientX - rect.left, e.clientY - rect.top);
+            }
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#00FF00'; ctx.lineWidth = 2;
+            ctx.strokeRect(startX, startY, (e.clientX - rect.left) - startX, (e.clientY - rect.top) - startY);
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDrawing) return;
+            isDrawing = false; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const rect = canvas.getBoundingClientRect();
+            const endX = e.clientX - rect.left; const endY = e.clientY - rect.top;
+            if (Math.abs(endX - startX) > 10 && Math.abs(endY - startY) > 10) {
+                addZone(startX, startY, endX, endY);
+            }
+        });
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        // --- API Calls ---
+        function addZone(x1, y1, x2, y2) {
+            fetch('/api/add_zone', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ coords: [x1, y1, x2, y2] })
+            }).then(() => updateStatus("Zone added"));
+        }
+        function deleteZone(x, y) {
+            fetch('/api/delete_zone', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ coords: [x, y] })
+            }).then(() => updateStatus("Zone deleted"));
+        }
+        function toggleBoxes() {
+            fetch('/api/toggle_boxes', { method: 'POST' }).then(res => res.json()).then(data => updateStatus(data.message));
+        }
+        function doAction(type) {
+            fetch('/api/action/' + type).then(res => res.json()).then(data => updateStatus(data.message));
+        }
+        function updateStatus(msg) {
+            statusMsg.innerText = msg;
+            setTimeout(() => { statusMsg.innerText = "Ready."; }, 5000);
+        }
+
+        // --- Logic Update Chart ---
+        function updateChartSource() {
+            trendChart.data.labels = [];
+            trendChart.data.datasets.forEach(d => d.data = []);
+            trendChart.update();
+            fetchData(); 
+        }
+
+        function fetchData() {
+            // 1. Stats Update
+            fetch('/api/stats')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('globalCount').innerText = data.global.count;
+                document.getElementById('globalTime').innerText = data.global.last_update;
+
+                const tbody = document.querySelector('#statsTable tbody');
+                tbody.innerHTML = '';
+                data.zones.forEach(z => {
+                    const net = z.in_count - z.out_count;
+                    tbody.innerHTML += `<tr>
+                        <td style="color: rgb(${z.color[0]}, ${z.color[1]}, ${z.color[2]}); font-weight:bold; text-align:left;">${z.label}</td>
+                        <td>${z.in_count}</td><td>${z.out_count}</td><td>${net}</td>
+                    </tr>`;
+                });
+            });
+
+            // 2. Trend Update
+            const timeframe = document.getElementById('timeFilter').value;
+            fetch(`/api/trend?interval=${timeframe}`)
+            .then(res => res.json())
+            .then(history => {
+                if (history.length === 0) return;
+
+                trendChart.data.labels = history.map(h => h.time);
+                trendChart.data.datasets[0].data = history.map(h => h.global);
+
+                const zoneLabels = Object.keys(history[history.length-1].zones || {});
+                const colors = ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'];
+
+                // Keep global dataset (index 0)
+                let newDatasets = [trendChart.data.datasets[0]];
+
+                zoneLabels.forEach((label, index) => {
+                    newDatasets.push({
+                        label: label,
+                        borderColor: colors[index % colors.length],
+                        backgroundColor: 'transparent',
+                        data: history.map(h => h.zones[label] || 0),
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: timeframe === 'realtime' ? 0 : 3
+                    });
+                });
+                
+                trendChart.data.datasets = newDatasets;
+                trendChart.update('none'); // Update without full animation for smoothness
+            });
+        }
+
+        // Loop update setiap 3 saat
+        setInterval(fetchData, 3000);
+        fetchData(); // Run on load
+    </script>
+</body>
+</html>

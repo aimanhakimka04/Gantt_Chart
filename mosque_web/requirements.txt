@@ -1,0 +1,7 @@
+Flask==3.1.2
+norfair==2.3.0
+numpy==2.4.0
+opencv_python==4.10.0.84
+Requests==2.32.5
+torch>=2.0
+
